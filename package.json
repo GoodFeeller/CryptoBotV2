@@ -1,0 +1,29 @@
+{
+  "name": "cryptobot-v2",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "check": "tsc --noEmit && vitest run && depcruise src",
+    "test": "vitest run",
+    "backtest": "tsx src/app/backtest.ts",
+    "live": "tsx src/app/live.ts",
+    "notify-test": "tsx src/app/notify-test.ts"
+  },
+  "dependencies": {
+    "@anthropic-ai/sdk": "^1.3.0",
+    "@resvg/resvg-js": "^2.6.2",
+    "dotenv": "^18.0.9",
+    "zod": "^4.6.7"
+  },
+  "devDependencies": {
+    "@types/node": "^22.20.5",
+    "dependency-cruiser": "^18.7.0",
+    "tsx": "^4.23.15",
+    "typescript": "^6.0.3",
+    "vitest": "^5.0.5"
+  }
+}
