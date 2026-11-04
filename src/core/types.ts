@@ -36,6 +36,41 @@ export interface PriceLevel {
   touches: number
 }
 
+export type LevelClass = 'major' | 'local'
+export type LevelOrigin = 'pivot' | 'trend_break' | 'consolidation' | 'paranormal_bar'
+
+export interface LevelEvent {
+  time: number
+  type: 'bounce' | 'false_break'
+  /** С какой стороны от уровня была цена. */
+  side: 'above' | 'below'
+}
+
+export interface LevelZone {
+  from: number
+  to: number
+  low: number
+  high: number
+}
+
+export interface Level {
+  class: LevelClass
+  price: number
+  /** traded: цена долго ходила вокруг уровня, и пока не будет нового отскока, использовать его нельзя. */
+  status: 'active' | 'traded'
+  origins: LevelOrigin[]
+  /** Момент, когда уровень стал известен. Раньше него уровень использовать нельзя. */
+  bornAt: number
+  /** Отскоки и ложные пробои: чем их больше, тем сильнее уровень. */
+  bounces: number
+  falseBreaks: number
+  /** Сколько раз уровень сменил сторону: поддержка стала сопротивлением или наоборот. */
+  flips: number
+  strength: number
+  events: LevelEvent[]
+  zones: LevelZone[]
+}
+
 export interface Situation {
   symbol: string
   kind: string
