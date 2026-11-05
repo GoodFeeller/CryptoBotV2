@@ -1,7 +1,7 @@
 // Положение EMA в заданный момент. Чистые функции: видят только свечи, закрытые к этому моменту, поэтому в бэктесте не заглядывают
 // в будущее. Расстояние до цены в ATR, чтобы одни и те же числа читались одинаково на BTC и на мелких монетах.
 import { computeAtr } from '../../core/atr.js'
-import type { Candle } from '../../core/types.js'
+import type { Candle, EmaReading, EmaSnapshot, EmaStack } from '../../core/types.js'
 
 export interface EmaOptions {
   /** Периоды от быстрого к медленному. */
@@ -12,23 +12,6 @@ export interface EmaOptions {
   /** Нужно истории не меньше warmupFactor × самый длинный период: иначе начальное значение заметно искажает EMA. */
   warmupFactor: number
 }
-
-export interface EmaReading {
-  period: number
-  value: number
-  /** С какой стороны EMA цена закрытия последней свечи. */
-  priceSide: 'above' | 'below'
-  /** Насколько цена от EMA, в ATR. Всегда не меньше нуля, сторону показывает priceSide. */
-  distanceAtr: number
-  slope: 'up' | 'down' | 'flat'
-}
-
-/** up: быстрые EMA выше медленных по порядку, down: наоборот, mixed: любой другой порядок. */
-export type EmaStack = 'up' | 'down' | 'mixed'
-
-export type EmaSnapshot =
-  | { ok: true; at: number; close: number; emas: EmaReading[]; stack: EmaStack }
-  | { ok: false; reason: 'not_enough_candles'; needed: number; got: number }
 
 /** EMA по каждому значению. Начало: простое среднее первых period значений, до него значения нет. */
 export function computeEma(values: number[], period: number): (number | undefined)[] {

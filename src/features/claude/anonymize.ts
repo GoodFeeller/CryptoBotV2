@@ -1,16 +1,16 @@
 // [REVIEW i-code#22] Обезличивание запроса: без тикера и дат, цены в шкале «текущая цена = 100». Иначе модель может узнать монету
 // и период и вспомнить, что было дальше, и бэктест окажется завышен. Позиция тоже передаётся только полями цены и состояния.
 // Шкала строится от текущей цены, а не от последнего закрытия, чтобы правило «текущая цена всегда 100» было точным.
-import type { Candle, CandleWindows, EntryRequest, PriceLevel, ReviewRequest, Side, Timeframe } from '../../core/types.js'
+import type { Candle, CandleWindows, EntryRequest, ReviewRequest, Side, Timeframe } from '../../core/types.js'
 
 const HOUR_MS = 3_600_000
-const PRICE_PREFIX = 'price:'
 
 type AnonCandle = [open: number, high: number, low: number, close: number, relativeVolume: number]
 type AnonCandles = Partial<Record<Timeframe, AnonCandle[]>>
 
 export interface AnonEntryBody {
-  situation: { kind: string; levels: PriceLevel[]; indicators: Record<string, number> }
+  // Картина рынка обезличивается отдельно, пока уходит только тип ситуации.
+  situation: { kind: string; picture: null }
   currentPrice: number
   maxLossPct: number
   candles: AnonCandles
@@ -37,18 +37,11 @@ export interface Anonymized<T> {
 export function anonymizeEntry(request: EntryRequest): Anonymized<AnonEntryBody> {
   const { situation, currentPrice, candles, maxLossPct } = request
   const toScale = scaler(currentPrice)
-  const indicators: Record<string, number> = {}
-  for (const [name, value] of Object.entries(situation.indicators)) {
-    if (name.startsWith(PRICE_PREFIX)) indicators[name.slice(PRICE_PREFIX.length)] = toScale(value)
-    else indicators[name] = value
-  }
-
   return {
     body: {
       situation: {
         kind: situation.kind,
-        levels: situation.levels.map((level) => ({ price: toScale(level.price), touches: level.touches })),
-        indicators,
+        picture: null,
       },
       currentPrice: toScale(currentPrice),
       maxLossPct,

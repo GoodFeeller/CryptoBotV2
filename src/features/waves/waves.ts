@@ -3,7 +3,7 @@
 // к моменту, поэтому в бэктесте не заглядывают в будущее.
 import { computeAtr } from '../../core/atr.js'
 import { findPivots, type Pivot } from '../../core/pivots.js'
-import type { Candle } from '../../core/types.js'
+import type { Candle, Wave, WaveDirection, WavePoint, WaveSnapshot } from '../../core/types.js'
 
 export interface WaveOptions {
   /** Разворот засчитывается, когда цена ушла от экстремума на столько ATR. От этого зависит, какие волны считаются. */
@@ -14,38 +14,6 @@ export interface WaveOptions {
   /** Без стольких завершённых волн в каждую сторону обычный размер не считается. */
   minWaves: number
 }
-
-export type WaveDirection = 'up' | 'down'
-
-export interface WavePoint {
-  time: number
-  price: number
-}
-
-export interface Wave {
-  direction: WaveDirection
-  from: WavePoint
-  to: WavePoint
-  length: number
-}
-
-export type WaveSnapshot =
-  | {
-      ok: true
-      at: number
-      close: number
-      atr: number
-      /** Завершённые волны от старых к новым. */
-      waves: Wave[]
-      /** Обычный размер волны в цене и в ATR. */
-      average: Record<WaveDirection, number>
-      averageAtr: Record<WaveDirection, number>
-      /** Текущая волна: от последнего разворота до самой дальней цены после него. share это доля от обычного размера. */
-      current: { direction: WaveDirection; start: WavePoint; extreme: WavePoint; length: number; lengthAtr: number; share: number }
-      /** Верх, низ и середина последней завершённой волны: ключевые зоны по видео. */
-      lastWave: { direction: WaveDirection; top: number; bottom: number; middle: number }
-    }
-  | { ok: false; reason: 'not_enough_waves'; up: number; down: number; needed: number }
 
 export function waveSnapshot(candles: Candle[], at: number, options: WaveOptions): WaveSnapshot {
   const closed = candles.filter((candle) => candle.closeTime <= at)

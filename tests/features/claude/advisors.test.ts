@@ -25,8 +25,7 @@ const ENTRY: EntryRequest = {
     symbol: 'BTCUSDT',
     kind: 'level-approach',
     at: T0,
-    levels: [{ price: 51_000, touches: 3 }],
-    indicators: { 'price:ema50': 49_000, rsi: 55 },
+    picture: null,
   },
   currentPrice: 50_000,
   candles: { '1h': [candle(0, 49_000), candle(1, 50_000, 30)] },
@@ -82,13 +81,12 @@ describe('anonymize', () => {
     }
   })
 
-  it('maps the current price to 100 and scales levels and price indicators only', () => {
+  it('maps the current price to 100 and sends the situation kind', () => {
     const { body, scale } = anonymizeEntry(ENTRY)
 
     expect(scale).toBe(100 / 50_000)
     expect(body.currentPrice).toBe(100)
-    expect(body.situation.levels).toEqual([{ price: 102, touches: 3 }])
-    expect(body.situation.indicators).toEqual({ ema50: 98, rsi: 55 })
+    expect(body.situation).toEqual({ kind: 'level-approach', picture: null })
     expect(body.maxLossPct).toBe(12.5)
   })
 

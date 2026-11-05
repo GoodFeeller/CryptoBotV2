@@ -3,36 +3,13 @@
 // к моменту.
 import { computeAtr } from '../../core/atr.js'
 import { findPivots, type Pivot } from '../../core/pivots.js'
-import type { Candle } from '../../core/types.js'
+import type { Candle, StructurePoint, StructureSnapshot, Trend } from '../../core/types.js'
 
 export interface StructureOptions {
   /** Разворот засчитывается, когда цена ушла от экстремума на столько ATR. Структуру смотрим по крупным волнам. */
   swingAtr: number
   atrPeriod: number
 }
-
-export type Trend = 'up' | 'down' | 'flat'
-
-export interface StructurePoint {
-  time: number
-  price: number
-}
-
-export type StructureSnapshot =
-  | {
-      ok: true
-      at: number
-      close: number
-      trend: Trend
-      /** Для флэта: последний тренд перед ним, null если тренда не было. Для тренда всегда null. */
-      previousTrend: 'up' | 'down' | null
-      /** Два последних максимума и минимума, старый первым. */
-      highs: [StructurePoint, StructurePoint]
-      lows: [StructurePoint, StructurePoint]
-      /** Цена уже за последним максимумом или минимумом, а новый разворот ещё не подтверждён. */
-      beyond: 'above_high' | 'below_low' | null
-    }
-  | { ok: false; reason: 'not_enough_pivots'; highs: number; lows: number; needed: 2 }
 
 export function structureSnapshot(candles: Candle[], at: number, options: StructureOptions): StructureSnapshot {
   const closed = candles.filter((candle) => candle.closeTime <= at)

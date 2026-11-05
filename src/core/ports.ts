@@ -3,6 +3,7 @@ import type {
   CancelReason,
   Candle,
   ClosedTrade,
+  EmaSnapshot,
   CloseReason,
   EntryDecision,
   EntryRequest,
@@ -11,6 +12,7 @@ import type {
   FundingRate,
   GateResult,
   Instrument,
+  Level,
   LimitOrder,
   PendingOrder,
   Position,
@@ -18,8 +20,10 @@ import type {
   ReviewRequest,
   Side,
   SignalContext,
+  StructureSnapshot,
   Situation,
   Timeframe,
+  WaveSnapshot,
 } from './types.js'
 
 export interface Clock {
@@ -37,7 +41,17 @@ export interface MarketData {
 export interface SignalDetector {
   /** true у заглушек: по их прогонам вердикт всегда N/A. */
   readonly isPlaceholder: boolean
-  detect(ctx: SignalContext): Situation | null
+  /** Асинхронный: настоящему детектору нужно загрузить свечи. */
+  detect(ctx: SignalContext): Promise<Situation | null>
+}
+
+/** Модули анализа рынка. Каждый метод видит только свечи, закрытые к моменту at. */
+export interface MarketAnalysis {
+  /** Основные уровни по дневкам и локальные по часовикам, совпадающие локальные убраны. */
+  levels(daily: Candle[], hourly: Candle[]): Level[]
+  ema(candles: Candle[], at: number): EmaSnapshot
+  waves(candles: Candle[], at: number, scale: 'small' | 'big'): WaveSnapshot
+  structure(candles: Candle[], at: number): StructureSnapshot
 }
 
 export interface TradeAdvisor {

@@ -31,11 +31,6 @@ export interface Instrument {
   maxLeverage: number
 }
 
-export interface PriceLevel {
-  price: number
-  touches: number
-}
-
 export type LevelClass = 'major' | 'local'
 export type LevelOrigin = 'pivot' | 'trend_break' | 'consolidation' | 'paranormal_bar'
 
@@ -76,9 +71,8 @@ export interface Situation {
   symbol: string
   kind: string
   at: number
-  levels: PriceLevel[]
-  /** Значения по имени. Имена индикаторов в единицах цены начинаются с `price:`, например `price:ema50`. */
-  indicators: Record<string, number>
+  /** Картина рынка. У заглушек null. */
+  picture: MarketPicture | null
 }
 
 export interface SignalContext {
@@ -202,3 +196,109 @@ export type SizingResult =
   | { ok: false; reason: 'below_min_qty' | 'no_margin' }
 
 export type GateResult = { allowed: true } | { allowed: false; drawdownPct: number }
+
+// Снимки модулей анализа. Модули считают их по свечам, детектор и Claude получают их через MarketAnalysis.
+
+export interface EmaReading {
+  period: number
+  value: number
+  /** С какой стороны EMA цена закрытия последней свечи. */
+  priceSide: 'above' | 'below'
+  /** Насколько цена от EMA, в ATR. Всегда не меньше нуля, сторону показывает priceSide. */
+  distanceAtr: number
+  slope: 'up' | 'down' | 'flat'
+}
+
+/** up: быстрые EMA выше медленных по порядку, down: наоборот, mixed: любой другой порядок. */
+export type EmaStack = 'up' | 'down' | 'mixed'
+
+export type EmaSnapshot =
+  | { ok: true; at: number; close: number; emas: EmaReading[]; stack: EmaStack }
+  | { ok: false; reason: 'not_enough_candles'; needed: number; got: number }
+
+export type WaveDirection = 'up' | 'down'
+
+export interface WavePoint {
+  time: number
+  price: number
+}
+
+export interface Wave {
+  direction: WaveDirection
+  from: WavePoint
+  to: WavePoint
+  length: number
+}
+
+export type WaveSnapshot =
+  | {
+      ok: true
+      at: number
+      close: number
+      atr: number
+      /** Завершённые волны от старых к новым. */
+      waves: Wave[]
+      /** Обычный размер волны в цене и в ATR. */
+      average: Record<WaveDirection, number>
+      averageAtr: Record<WaveDirection, number>
+      /** Текущая волна: от последнего разворота до самой дальней цены после него. share это доля от обычного размера. */
+      current: { direction: WaveDirection; start: WavePoint; extreme: WavePoint; length: number; lengthAtr: number; share: number }
+      /** Верх, низ и середина последней завершённой волны: ключевые зоны по видео. */
+      lastWave: { direction: WaveDirection; top: number; bottom: number; middle: number }
+    }
+  | { ok: false; reason: 'not_enough_waves'; up: number; down: number; needed: number }
+
+export type Trend = 'up' | 'down' | 'flat'
+
+export interface StructurePoint {
+  time: number
+  price: number
+}
+
+export type StructureSnapshot =
+  | {
+      ok: true
+      at: number
+      close: number
+      trend: Trend
+      /** Для флэта: последний тренд перед ним, null если тренда не было. Для тренда всегда null. */
+      previousTrend: 'up' | 'down' | null
+      /** Два последних максимума и минимума, старый первым. */
+      highs: [StructurePoint, StructurePoint]
+      lows: [StructurePoint, StructurePoint]
+      /** Цена уже за последним максимумом или минимумом, а новый разворот ещё не подтверждён. */
+      beyond: 'above_high' | 'below_low' | null
+    }
+  | { ok: false; reason: 'not_enough_pivots'; highs: number; lows: number; needed: 2 }
+
+export type ZoneReason =
+  | { type: 'level'; class: LevelClass; bounces: number; flips: number }
+  | { type: 'wave'; part: 'top' | 'middle' | 'bottom' }
+
+export interface PictureLevel {
+  price: number
+  class: LevelClass
+  status: Level['status']
+  bounces: number
+  falseBreaks: number
+  flips: number
+}
+
+export interface WavePicture {
+  averageAtr: Record<WaveDirection, number>
+  current: { direction: WaveDirection; startPrice: number; lengthAtr: number; share: number }
+  lastWave: { direction: WaveDirection; top: number; middle: number; bottom: number }
+}
+
+/** Картина рынка в момент ситуации. Цены реальные, шкалу для Claude строит обезличивание. */
+export interface MarketPicture {
+  zone: { price: number; low: number; high: number; reasons: ZoneReason[] }
+  /** Уровни рядом с ценой любого статуса. */
+  levels: PictureLevel[]
+  waves: Record<'small' | 'big', WavePicture>
+  structure: { trend: Trend; previousTrend: 'up' | 'down' | null; beyond: 'above_high' | 'below_low' | null; highs: StructurePoint[]; lows: StructurePoint[] }
+  /** Только таймфреймы, где снимок EMA получился: у молодых монет нет дневной EMA. */
+  ema: Partial<Record<Timeframe, { stack: EmaStack; emas: EmaReading[] }>>
+  /** ATR в процентах от цены. */
+  atrPct: Partial<Record<Timeframe, number>>
+}

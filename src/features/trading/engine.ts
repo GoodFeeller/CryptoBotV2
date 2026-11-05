@@ -209,7 +209,7 @@ export class TradingEngine {
     if ([...positions, ...orders].some((item) => item.symbol === symbol)) return
 
     const candles = await this.loadWindows(symbol, now)
-    const situation = detector.detect({ symbol, now, candles })
+    const situation = await detector.detect({ symbol, now, candles })
     if (!situation) return
 
     const currentPrice = await this.currentPrice(symbol, now)

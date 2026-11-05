@@ -145,10 +145,10 @@ class Harness {
     market: this.market,
     detector: {
       isPlaceholder: true,
-      detect: (ctx) => {
+      detect: async (ctx) => {
         this.log.push('detect')
         if (!this.situations[ctx.symbol]) return null
-        const situation: Situation = { symbol: ctx.symbol, kind: 'test', at: ctx.now, levels: [], indicators: {} }
+        const situation: Situation = { symbol: ctx.symbol, kind: 'test', at: ctx.now, picture: null }
         return situation
       },
     },

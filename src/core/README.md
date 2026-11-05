@@ -6,8 +6,8 @@
 
 | Файл | Содержимое |
 |---|---|
-| `types.ts` | свечи, ситуации, решения Claude, ордера, позиции, сделки, события брокера |
-| `ports.ts` | интерфейсы: `Clock`, `MarketData`, `SignalDetector`, `TradeAdvisor`, `RiskGate`, `Broker`, `ChartRenderer`, `Notifier` |
+| `types.ts` | свечи, ситуации и картина рынка, снимки EMA, волн и структуры, решения Claude, ордера, позиции, сделки, события брокера |
+| `ports.ts` | интерфейсы: `Clock`, `MarketData`, `MarketAnalysis`, `SignalDetector`, `TradeAdvisor`, `RiskGate`, `Broker`, `ChartRenderer`, `Notifier` |
 | `timeframes.ts` | длины таймфреймов и проверка закрытия свечи |
 | `atr.ts` | ATR по свечам: общий для уровней, EMA и волн |
 | `pivots.ts` | развороты волн: общие для уровней и волн |

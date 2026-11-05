@@ -27,38 +27,37 @@ describe('EveryNCandlesDetector', () => {
     expect(detector.isPlaceholder).toBe(true)
   })
 
-  it('fires every n candles', () => {
-    const fired = [100, 101, 102, 103, 104].map((hour) => detector.detect(context(hour)) !== null)
+  it('fires every n candles', async () => {
+    const fired = await Promise.all([100, 101, 102, 103, 104].map(async (hour) => (await detector.detect(context(hour))) !== null))
 
     expect(fired).toEqual([true, false, false, false, true])
   })
 
-  it('describes the situation only, without side or prices', () => {
-    expect(detector.detect(context(100))).toEqual({
+  it('describes the situation only, without side or prices', async () => {
+    expect(await detector.detect(context(100))).toEqual({
       symbol: 'BTCUSDT',
       kind: 'every-n-candles',
       at: 100 * HOUR,
-      levels: [],
-      indicators: {},
+      picture: null,
     })
   })
 
-  it('returns null without candles', () => {
-    expect(detector.detect(context(100, false))).toBeNull()
+  it('returns null without candles', async () => {
+    expect(await detector.detect(context(100, false))).toBeNull()
   })
 })
 
 describe('ScriptedSignalDetector', () => {
-  const situation: Situation = { symbol: 'BTCUSDT', kind: 'test', at: 100 * HOUR, levels: [], indicators: {} }
+  const situation: Situation = { symbol: 'BTCUSDT', kind: 'test', at: 100 * HOUR, picture: null }
   const detector = new ScriptedSignalDetector([situation])
 
-  it('returns a matching situation', () => {
-    expect(detector.detect(context(100))).toEqual(situation)
+  it('returns a matching situation', async () => {
+    expect(await detector.detect(context(100))).toEqual(situation)
     expect(detector.isPlaceholder).toBe(true)
   })
 
-  it('returns null for another time or coin', () => {
-    expect(detector.detect(context(101))).toBeNull()
-    expect(detector.detect({ ...context(100), symbol: 'ETHUSDT' })).toBeNull()
+  it('returns null for another time or coin', async () => {
+    expect(await detector.detect(context(101))).toBeNull()
+    expect(await detector.detect({ ...context(100), symbol: 'ETHUSDT' })).toBeNull()
   })
 })

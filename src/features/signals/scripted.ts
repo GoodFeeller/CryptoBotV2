@@ -7,7 +7,7 @@ export class ScriptedSignalDetector implements SignalDetector {
 
   constructor(private readonly situations: Situation[]) {}
 
-  detect(ctx: SignalContext): Situation | null {
+  async detect(ctx: SignalContext): Promise<Situation | null> {
     return this.situations.find(({ symbol, at }) => symbol === ctx.symbol && at === ctx.now) ?? null
   }
 }

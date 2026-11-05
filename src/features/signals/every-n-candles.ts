@@ -10,12 +10,12 @@ export class EveryNCandlesDetector implements SignalDetector {
 
   constructor(private readonly options: { n: number; timeframe: Timeframe }) {}
 
-  detect(ctx: SignalContext): Situation | null {
+  async detect(ctx: SignalContext): Promise<Situation | null> {
     const { n, timeframe } = this.options
     const last = ctx.candles[timeframe]?.at(-1)
     if (!last) return null
     if (Math.floor(last.closeTime / timeframeMs(timeframe)) % n !== 0) return null
 
-    return { symbol: ctx.symbol, kind: 'every-n-candles', at: ctx.now, levels: [], indicators: {} }
+    return { symbol: ctx.symbol, kind: 'every-n-candles', at: ctx.now, picture: null }
   }
 }
