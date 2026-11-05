@@ -42,7 +42,8 @@ for (const symbol of symbolsArg.split(',')) {
   counts.push(`${symbol}: ${found.length}`)
 
   const candles = await raw.candles(symbol, '1h', to, Math.ceil((to - from) / HOUR))
-  const marks = found.map((situation) => ({ time: situation.at - HOUR, price: situation.picture!.zone.price, label: shares(situation) }))
+  // Подписи на месяце ситуаций наползают друг на друга, поэтому на картинке только кружки, подробности в списке.
+  const marks = found.map((situation) => ({ time: situation.at - HOUR, price: situation.picture!.zone.price, label: '' }))
   const title = `${symbol} · 1h · ситуаций ${found.length} · ${fromArg} — ${toArg}`
   writeFileSync(`${dir}/${symbol}.png`, renderLevelsPng({ title, candles, levels: [], marks }))
 }
