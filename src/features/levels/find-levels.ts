@@ -3,6 +3,7 @@
 // засчитывается, только когда цена реально ушла от уровня, иначе дрожание у цены давало бы десятки ложных отскоков. Все пороги
 // в ATR, чтобы одни и те же настройки работали на BTC и на мелких монетах. Значения подобраны как начальные и будут уточняться по картинкам.
 import { computeAtr } from '../../core/atr.js'
+import { findPivots } from '../../core/pivots.js'
 import type { Candle, Level, LevelClass, LevelEvent, LevelOrigin, LevelZone } from '../../core/types.js'
 
 export interface LevelOptions {
@@ -99,13 +100,6 @@ interface Candidate {
   zone?: LevelZone
 }
 
-interface Pivot {
-  type: 'high' | 'low'
-  index: number
-  price: number
-  confirmedIndex: number
-}
-
 export function findLevels(candles: Candle[], options: LevelOptions): Level[] {
   if (candles.length <= options.atrPeriod) return []
 
@@ -129,36 +123,6 @@ export function findLevels(candles: Candle[], options: LevelOptions): Level[] {
 export function combineLevels(major: Level[], local: Level[], tolerance: number): Level[] {
   const separate = local.filter((item) => major.every((level) => Math.abs(level.price - item.price) > tolerance))
   return [...major, ...separate]
-}
-
-/** Волны: разворот подтверждается, только когда цена ушла от экстремума на swingAtr. Самая первая точка разворотом не считается. */
-function findPivots(candles: Candle[], atr: number[], swingAtr: number): Pivot[] {
-  const pivots: Pivot[] = []
-  let direction: 'up' | 'down' | null = null
-  let highIndex = 0
-  let lowIndex = 0
-
-  candles.forEach((candle, i) => {
-    if (candle.high > candles[highIndex]!.high) highIndex = i
-    if (candle.low < candles[lowIndex]!.low) lowIndex = i
-    const swing = swingAtr * atr[i]!
-
-    if (direction === null) {
-      if (candle.high - candles[lowIndex]!.low >= swing && highIndex > lowIndex) direction = 'up'
-      else if (candles[highIndex]!.high - candle.low >= swing && lowIndex > highIndex) direction = 'down'
-      return
-    }
-    if (direction === 'up' && candles[highIndex]!.high - candle.low >= swing && i > highIndex) {
-      pivots.push({ type: 'high', index: highIndex, price: candles[highIndex]!.high, confirmedIndex: i })
-      direction = 'down'
-      lowIndex = i
-    } else if (direction === 'down' && candle.high - candles[lowIndex]!.low >= swing && i > lowIndex) {
-      pivots.push({ type: 'low', index: lowIndex, price: candles[lowIndex]!.low, confirmedIndex: i })
-      direction = 'up'
-      highIndex = i
-    }
-  })
-  return pivots
 }
 
 function pivotCandidates(candles: Candle[], atr: number[], options: LevelOptions): Candidate[] {

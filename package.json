@@ -13,7 +13,8 @@
     "live": "tsx src/app/live.ts",
     "notify-test": "tsx src/app/notify-test.ts",
     "levels": "tsx src/app/levels.ts",
-    "ema": "tsx src/app/ema.ts"
+    "ema": "tsx src/app/ema.ts",
+    "waves": "tsx src/app/waves.ts"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^1.3.0",

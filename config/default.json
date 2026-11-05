@@ -16,6 +16,7 @@
     "pricing": { "inputPerM": 4, "outputPerM": 20, "cacheReadPerM": 0.2, "cacheWritePerM": 5 }
   },
   "ema": { "periods": [20, 50, 200], "timeframes": ["1h", "1d"], "slopeBars": 5, "atrPeriod": 14, "warmupFactor": 3 },
+  "waves": { "timeframes": ["1h", "1d"], "swingAtr": 2, "atrPeriod": 14, "sampleWaves": 6, "minWaves": 3, "historyCandles": 300 },
   "backtest": { "initialBalance": 10000 },
   "paths": { "data": "data" }
 }
