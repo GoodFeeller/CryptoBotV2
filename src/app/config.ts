@@ -58,7 +58,8 @@ const ConfigSchema = z.strictObject({
   }),
   waves: z.strictObject({
     timeframes: z.array(Timeframe).min(1),
-    swingAtr: z.number().positive(),
+    /** Порог разворота для мелких и крупных волн: обе сетки считаются отдельно. */
+    swingAtr: z.strictObject({ small: z.number().positive(), big: z.number().positive() }),
     atrPeriod: PositiveInt,
     sampleWaves: PositiveInt,
     minWaves: PositiveInt,
