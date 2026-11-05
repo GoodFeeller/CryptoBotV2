@@ -1,5 +1,5 @@
 // [REVIEW i-code#39] Общая сборка для бэктеста и live: здесь один раз решается, какие реализации подставить, а отличия режимов
-// передаются параметрами. Настоящий детектор подключается в createDetector, движок и симулятор при этом не меняются.
+// передаются параметрами. Детектор зон подключается в createDetector, движок и симулятор при этом не меняются.
 import { join } from 'node:path'
 import type { ChartRenderer, Clock, MarketData, Notifier, SignalDetector, TradeAdvisor } from '../core/ports.js'
 import { SimulatedBroker } from '../features/backtest/simulated-broker.js'
@@ -7,15 +7,14 @@ import { BybitMarketData, type BybitApi } from '../features/market-data/bybit-ma
 import { CandleStore } from '../features/market-data/candle-store.js'
 import { ClampedMarketData } from '../features/market-data/clamped-market-data.js'
 import { DrawdownGate } from '../features/risk/drawdown-gate.js'
-import { EveryNCandlesDetector } from '../features/signals/every-n-candles.js'
+import { ZoneDetector } from '../features/signals/zone-detector.js'
 import { TradingEngine, type EngineConfig } from '../features/trading/engine.js'
 import type { AppConfig } from './config.js'
+import { createMarketAnalysis } from './market-analysis.js'
 
-/** Заглушка сигналов срабатывает раз в столько сигнальных свечей. */
-const PLACEHOLDER_EVERY_N_CANDLES = 4
-
-export function createDetector(config: AppConfig): SignalDetector {
-  return new EveryNCandlesDetector({ n: PLACEHOLDER_EVERY_N_CANDLES, timeframe: config.timeframes.signal })
+/** Детектору нужен тот же MarketData, что и движку: в бэктесте он не отдаёт будущих свечей. */
+export function createDetector(config: AppConfig, market: MarketData): SignalDetector {
+  return new ZoneDetector({ market, analysis: createMarketAnalysis(config), options: config.signals.zone })
 }
 
 export function createRawMarket(config: AppConfig, api: BybitApi, now: () => number): BybitMarketData {
@@ -39,14 +38,24 @@ export interface TradingParts {
   broker: SimulatedBroker
   engine: TradingEngine
   market: MarketData
+  detector: SignalDetector
 }
 
 /** Движок получает только данные, ограниченные часами. */
 export function createTrading(
   config: AppConfig,
-  deps: { raw: MarketData; clock: Clock; advisor: TradeAdvisor; notifier: Notifier; chart: ChartRenderer },
+  deps: {
+    raw: MarketData
+    clock: Clock
+    advisor: TradeAdvisor
+    notifier: Notifier
+    chart: ChartRenderer
+    /** Подмена детектора: интеграционные тесты проверяют конвейер на заглушке. */
+    makeDetector?: (market: MarketData) => SignalDetector
+  },
 ): TradingParts {
   const market = new ClampedMarketData(deps.raw, deps.clock)
+  const detector = deps.makeDetector ? deps.makeDetector(market) : createDetector(config, market)
   const broker = new SimulatedBroker({
     initialBalance: config.backtest.initialBalance,
     costs: config.costs,
@@ -54,7 +63,7 @@ export function createTrading(
   })
   const engine = new TradingEngine({
     market,
-    detector: createDetector(config),
+    detector,
     advisor: deps.advisor,
     gate: new DrawdownGate({ maxDrawdownHaltPct: config.risk.maxDrawdownHaltPct }),
     broker,
@@ -62,7 +71,7 @@ export function createTrading(
     chart: deps.chart,
     config: engineConfig(config),
   })
-  return { broker, engine, market }
+  return { broker, engine, market, detector }
 }
 
 export function dataPath(config: AppConfig, ...parts: string[]): string {

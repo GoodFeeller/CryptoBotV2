@@ -71,6 +71,15 @@ const ConfigSchema = z.strictObject({
     atrPeriod: PositiveInt,
     historyCandles: PositiveInt,
   }),
+  signals: z.strictObject({
+    zone: z.strictObject({
+      zoneAtr: z.number().positive(),
+      exhaustedShare: z.number().positive(),
+      maxAsksPerVisit: PositiveInt,
+      nearbyLevelsAtr: z.number().positive(),
+      history: z.strictObject({ '1d': PositiveInt, '1h': PositiveInt }),
+    }),
+  }),
   backtest: z.strictObject({ initialBalance: z.number().positive() }),
   paths: z.strictObject({ data: z.string().min(1) }),
 })

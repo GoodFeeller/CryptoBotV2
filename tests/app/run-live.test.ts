@@ -9,6 +9,10 @@ import { timeframeMs } from '../../src/core/timeframes.js'
 import type { Candle, Instrument, Timeframe } from '../../src/core/types.js'
 import type { ClaudeCall } from '../../src/features/claude/api-source.js'
 import type { BybitApi } from '../../src/features/market-data/bybit-market-data.js'
+import { EveryNCandlesDetector } from '../../src/features/signals/every-n-candles.js'
+
+/** Конвейер проверяем на заглушке: на синтетических свечах детектор зон честно молчит. */
+const placeholder = () => new EveryNCandlesDetector({ n: 4, timeframe: '1h' })
 
 const HOUR = 3_600_000
 const T0 = Date.UTC(2026, 0, 10, 12)
@@ -59,7 +63,7 @@ function setup(call: ClaudeCall) {
   const api = new FakeApi()
   const { sent, notifier } = recordingNotifier()
   let now = T0
-  const context = createLiveContext({ config, api, call, notifier, now: () => now })
+  const context = createLiveContext({ config, api, call, notifier, now: () => now, makeDetector: placeholder })
   return { context, api, sent, setNow: (value: number) => (now = value) }
 }
 

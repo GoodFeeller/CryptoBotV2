@@ -3,7 +3,7 @@
 // проверяется и по ходу, и в конце, потому что прогон с частыми сбоями уже не отражает работу модели.
 import { timeframeMs } from '../core/timeframes.js'
 import { FatalRunError } from '../core/errors.js'
-import type { TradeAdvisor } from '../core/ports.js'
+import type { MarketData, SignalDetector, TradeAdvisor } from '../core/ports.js'
 import { missedEntries } from '../features/backtest/missed-entries.js'
 import { buildReport, type DecisionSourceName, type Report, type RunStatus } from '../features/backtest/report.js'
 import { appendValidationLog, writeRun } from '../features/backtest/run-writer.js'
@@ -18,7 +18,7 @@ import { SessionDecisionSource } from '../features/claude/session-source.js'
 import { BybitClient } from '../features/market-data/bybit-client.js'
 import type { BybitApi } from '../features/market-data/bybit-market-data.js'
 import { NullNotifier } from '../features/telegram/null-notifier.js'
-import { createDetector, createRawMarket, createTrading, dataPath } from './compose.js'
+import { createRawMarket, createTrading, dataPath } from './compose.js'
 import { loadConfig, requireSecret, type AppConfig } from './config.js'
 import { ManualClock, simulate } from './run-loop.js'
 
@@ -40,6 +40,7 @@ export interface RunDeps {
   call: ClaudeCall
   now: () => number
   runId: string
+  makeDetector: (market: MarketData) => SignalDetector
   env: NodeJS.ProcessEnv
 }
 
@@ -64,12 +65,13 @@ export async function runBacktest(options: BacktestOptions, deps: Partial<RunDep
   const clock = new ManualClock(from)
   const raw = createRawMarket(config, deps.api ?? new BybitClient(), now)
   const choice = createAdvisor(options, config, deps)
-  const { broker, engine } = createTrading(config, {
+  const { broker, engine, detector } = createTrading(config, {
     raw,
     clock,
     advisor: choice.advisor,
     notifier: new NullNotifier(),
     chart: new NullChartRenderer(),
+    ...(deps.makeDetector ? { makeDetector: deps.makeDetector } : {}),
   })
 
   let status: RunStatus = 'ok'
@@ -124,7 +126,7 @@ export async function runBacktest(options: BacktestOptions, deps: Partial<RunDep
   const report = buildReport({
     status,
     mode,
-    isPlaceholder: createDetector(config).isPlaceholder,
+    isPlaceholder: detector.isPlaceholder,
     costsEnabled: config.costs.takerPct > 0 && config.costs.slippagePct > 0,
     decisionSource: choice.source,
     from,

@@ -37,6 +37,7 @@ describe('loadConfig', () => {
       maintenanceMarginPct: 0.5,
     })
     expect(cfg.baseline).toEqual({ entryOffsetPct: 0.2, stopPct: 1, takePct: 1.5, notionalPct: 20, leverage: 5 })
+    expect(cfg.signals).toEqual({ zone: { zoneAtr: 0.5, exhaustedShare: 0.9, maxAsksPerVisit: 3, nearbyLevelsAtr: 3, history: { '1d': 600, '1h': 720 } } })
     expect(cfg.structure).toEqual({ timeframe: '1h', swingAtr: 4, atrPeriod: 14, historyCandles: 720 })
     expect(cfg.waves).toEqual({ timeframes: ['1h', '1d'], swingAtr: { small: 2, big: 4 }, atrPeriod: 14, sampleWaves: 6, minWaves: 3, historyCandles: 720 })
     expect(cfg.ema).toEqual({ periods: [20, 50, 200], timeframes: ['1h', '1d'], slopeBars: 5, atrPeriod: 14, warmupFactor: 3 })

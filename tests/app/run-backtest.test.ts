@@ -8,6 +8,10 @@ import { timeframeMs } from '../../src/core/timeframes.js'
 import type { Candle, FundingRate, Instrument, Timeframe } from '../../src/core/types.js'
 import type { ClaudeCall } from '../../src/features/claude/api-source.js'
 import type { BybitApi } from '../../src/features/market-data/bybit-market-data.js'
+import { EveryNCandlesDetector } from '../../src/features/signals/every-n-candles.js'
+
+/** Конвейер проверяем на заглушке: на синтетических свечах детектор зон честно молчит. */
+const placeholder = () => new EveryNCandlesDetector({ n: 4, timeframe: '1h' })
 
 const HOUR = 3_600_000
 const FROM = Date.UTC(2026, 0, 10)
@@ -75,7 +79,7 @@ describe('runBacktest', () => {
   function run(options: Partial<BacktestOptions> = {}, deps: Partial<RunDeps> = {}) {
     return runBacktest(
       { from: FROM, to: TO, mode: 'research', advisor: 'random-side', estimate: false, ...options },
-      { config, api, now: () => NOW, runId: 'test', ...deps },
+      { config, api, now: () => NOW, runId: 'test', makeDetector: placeholder, ...deps },
     )
   }
 

@@ -2,7 +2,7 @@
 // Кеша ответов нет: каждый рынок новый. Ошибка цикла уходит в Telegram и не останавливает бота, а исчерпанный лимит
 // расходов останавливает: дальше бот вёл бы сделки без советника. Открытые сделки теряются при перезапуске, это снимем на этапе демо-счёта.
 import { FatalRunError } from '../core/errors.js'
-import type { ChartRenderer, MarketData, Notifier } from '../core/ports.js'
+import type { ChartRenderer, MarketData, Notifier, SignalDetector } from '../core/ports.js'
 import { timeframeMs } from '../core/timeframes.js'
 import type { ClosedTrade, Position } from '../core/types.js'
 import type { SimulatedBroker } from '../features/backtest/simulated-broker.js'
@@ -25,6 +25,7 @@ export interface LiveDeps {
   call: ClaudeCall
   notifier: Notifier
   now: () => number
+  makeDetector?: (market: MarketData) => SignalDetector
 }
 
 export interface LiveContext {
@@ -47,6 +48,7 @@ export function createLiveContext(deps: LiveDeps): LiveContext {
     advisor: new DecisionAdvisor(source, promptVersion),
     notifier,
     chart: new SvgChartRenderer(),
+    ...(deps.makeDetector ? { makeDetector: deps.makeDetector } : {}),
   })
   return { config, market, broker, engine, notifier, lastFed: new Map(), lastFunding: new Map() }
 }
