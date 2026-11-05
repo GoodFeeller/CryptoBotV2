@@ -65,6 +65,12 @@ const ConfigSchema = z.strictObject({
     minWaves: PositiveInt,
     historyCandles: PositiveInt,
   }),
+  structure: z.strictObject({
+    timeframe: Timeframe,
+    swingAtr: z.number().positive(),
+    atrPeriod: PositiveInt,
+    historyCandles: PositiveInt,
+  }),
   backtest: z.strictObject({ initialBalance: z.number().positive() }),
   paths: z.strictObject({ data: z.string().min(1) }),
 })

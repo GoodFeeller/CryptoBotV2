@@ -1,10 +1,10 @@
 // Команда для проверки волн глазами: печатает обычный размер мелких и крупных волн и сколько прошла текущая, рисует оба зигзага.
 // Пример: npm run waves -- BTCUSDT,ETHUSDT 2026-10-31T13:16Z. Без даты берётся текущий момент. В логике бота это пока не участвует.
 import { mkdirSync, writeFileSync } from 'node:fs'
-import type { Candle } from '../core/types.js'
 import { renderLevelsPng, type ChartLine } from '../features/chart/levels-chart.js'
+import { zigzagValues } from '../features/chart/zigzag.js'
 import { BybitClient } from '../features/market-data/bybit-client.js'
-import { waveSnapshot, type WavePoint } from '../features/waves/waves.js'
+import { waveSnapshot } from '../features/waves/waves.js'
 import { createRawMarket, dataPath } from './compose.js'
 import { loadConfig } from './config.js'
 
@@ -44,7 +44,7 @@ for (const symbol of symbols) {
       console.log(`    последняя волна ${DIRECTION[lastWave.direction]}: верх ${price(lastWave.top)}, середина ${price(lastWave.middle)}, низ ${price(lastWave.bottom)}`)
 
       const points = [snapshot.waves[0]!.from, ...snapshot.waves.map((wave) => wave.to), current.extreme]
-      lines.push({ label: `${SCALES[scale]} волны`, color: COLORS[scale], values: zigzag(shown, points) })
+      lines.push({ label: `${SCALES[scale]} волны`, color: COLORS[scale], values: zigzagValues(shown, points) })
       titleParts.push(`${SCALES[scale]} ↑${price(average.up)} ↓${price(average.down)}, текущая ${DIRECTION[current.direction]} ${percent}%`)
       // Верх, середину и низ рисуем только для крупной волны, как в видео: так картинка не перегружена.
       if (scale === 'big') {
@@ -62,29 +62,6 @@ for (const symbol of symbols) {
   }
 }
 console.log(`\nКартинки: ${dir}`)
-
-/** Ломаная через развороты: значения по свечам, между разворотами по прямой. Развороты левее картинки тянут линию от края. */
-function zigzag(candles: Candle[], points: WavePoint[]): (number | undefined)[] {
-  const values: (number | undefined)[] = candles.map(() => undefined)
-  const first = candles[0]?.openTime ?? 0
-  const position = (time: number) => (time < first ? -1 - candles.length : candles.findIndex((candle) => candle.openTime === time))
-  for (let k = 1; k < points.length; k++) {
-    const from = position(points[k - 1]!.time)
-    const to = position(points[k]!.time)
-    if (to < 0) continue
-    const start = from < 0 ? indexBefore(points[k - 1]!.time, candles) : from
-    for (let i = Math.max(start, 0); i <= to; i++) {
-      values[i] = points[k - 1]!.price + ((points[k]!.price - points[k - 1]!.price) * (i - start)) / Math.max(to - start, 1)
-    }
-  }
-  return values
-}
-
-/** Положение свечи левее картинки в индексах картинки: отрицательное число. */
-function indexBefore(time: number, candles: Candle[]): number {
-  const step = candles.length > 1 ? candles[1]!.openTime - candles[0]!.openTime : 1
-  return Math.round((time - candles[0]!.openTime) / step)
-}
 
 function price(value: number): number {
   return Number(value.toPrecision(5))
