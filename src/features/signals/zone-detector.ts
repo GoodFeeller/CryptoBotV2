@@ -54,19 +54,19 @@ export class ZoneDetector implements SignalDetector {
 
     const levels = analysis.levels(daily.slice(-LEVEL_DAYS), hourly)
     const atr = computeAtr(hourly, ATR_PERIOD).at(-1)!
-    const found = this.exhaustedZone(buildZones(levels, big, atr, options.zoneAtr), last, [small, big])
-    if (!found) return this.leave(symbol)
-    if (!this.mayAsk(symbol, found, now)) return null
+    const touched = buildZones(levels, big, atr, options.zoneAtr).filter((zone) => touches(zone, last))
+    const found = this.exhaustedZone(touched, [small, big])
+    if (!this.mayAsk(symbol, touched, found !== null, last, now) || !found) return null
 
     const dailyAtr = computeAtr(daily, ATR_PERIOD).at(-1) ?? 0
     const picture = this.picture({ zone: found, levels, small, big, structure, hourly, daily, atr, dailyAtr, close: last.close, now })
     return picture ? { symbol, kind: 'zone', at: now, picture } : null
   }
 
-  /** Касающаяся зона во внешней половине исчерпанной волны; из нескольких — ближайшая к краю волны. */
-  private exhaustedZone(zones: Zone[], last: Candle, waveSets: WaveSnapshot[]): Zone | null {
+  /** Из касающихся зон — та, что во внешней половине исчерпанной волны; из нескольких — ближайшая к краю волны. */
+  private exhaustedZone(touched: Zone[], waveSets: WaveSnapshot[]): Zone | null {
     let best: { zone: Zone; distance: number } | null = null
-    for (const zone of zones.filter((item) => touches(item, last))) {
+    for (const zone of touched) {
       for (const waves of waveSets) {
         if (!waves.ok || waves.current.share < this.deps.options.exhaustedShare || !inOuterHalf(zone, waves.current)) continue
         const distance = Math.abs(zone.price - waves.current.extreme.price)
@@ -76,16 +76,26 @@ export class ZoneDetector implements SignalDetector {
     return best?.zone ?? null
   }
 
-  /** Считает вопросы за один подход к зоне. Подход продолжается, если час назад касалась та же зона. */
-  private mayAsk(symbol: string, zone: Zone, now: number): boolean {
+  /**
+   * Считает вопросы за один подход. Подход — область цены: все зоны, которых касалась цена, пока она каждый час задевает
+   * эту область. Так соседние зоны в боковике и часы без исчерпанной волны не начинают подход заново. Подход заканчивается
+   * часом без касания области или пропуском вызова: движок не спрашивает детектор, пока по монете открыта позиция или ордер.
+   */
+  private mayAsk(symbol: string, touched: Zone[], exhausted: boolean, last: Candle, now: number): boolean {
     const visit = this.visits.get(symbol)
-    const sameVisit = visit && visit.lastAt === now - HOUR && zone.low <= visit.high && zone.high >= visit.low
-    if (!sameVisit) {
-      this.visits.set(symbol, { low: zone.low, high: zone.high, asks: 1, lastAt: now })
+    const continuing = visit && visit.lastAt === now - HOUR && touches({ price: 0, low: visit.low, high: visit.high, reasons: [] }, last)
+    if (!continuing) {
+      this.visits.delete(symbol)
+      if (!exhausted) return false
+      this.visits.set(symbol, { low: Math.min(...touched.map((zone) => zone.low)), high: Math.max(...touched.map((zone) => zone.high)), asks: 1, lastAt: now })
       return true
     }
     visit.lastAt = now
-    if (visit.asks >= this.deps.options.maxAsksPerVisit) return false
+    for (const zone of touched) {
+      visit.low = Math.min(visit.low, zone.low)
+      visit.high = Math.max(visit.high, zone.high)
+    }
+    if (!exhausted || visit.asks >= this.deps.options.maxAsksPerVisit) return false
     visit.asks++
     return true
   }

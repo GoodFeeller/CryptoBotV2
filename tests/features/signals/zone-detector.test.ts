@@ -59,7 +59,7 @@ const EMA: EmaSnapshot = { ok: true, at: NOW, close: 110, emas: [{ period: 20, v
 
 interface Setup {
   levels?: Level[]
-  small?: WaveSnapshot
+  small?: WaveSnapshot | ((now: number) => WaveSnapshot)
   big?: WaveSnapshot
   structure?: StructureSnapshot
   dailyEma?: boolean
@@ -78,7 +78,10 @@ function detector(setup: Setup): ZoneDetector {
   const analysis: MarketAnalysis = {
     levels: () => setup.levels ?? [level(110)],
     ema: (candles) => (candles[0]!.closeTime - candles[0]!.openTime === DAY && setup.dailyEma === false ? { ok: false, reason: 'not_enough_candles', needed: 600, got: 50 } : EMA),
-    waves: (_candles, _at, scale) => (scale === 'small' ? (setup.small ?? waves('up', 100, 10.3, 0.95)) : (setup.big ?? QUIET)),
+    waves: (_candles, at, scale) => {
+      if (scale === 'big') return setup.big ?? QUIET
+      return typeof setup.small === 'function' ? setup.small(at) : (setup.small ?? waves('up', 100, 10.3, 0.95))
+    },
     structure: () => setup.structure ?? STRUCTURE,
   }
   return new ZoneDetector({ market, analysis, options: OPTIONS })
@@ -130,6 +133,27 @@ describe('ZoneDetector', () => {
     for (let hour = 0; hour <= 5; hour++) answers.push((await ask(d, NOW + hour * HOUR)) !== null)
 
     expect(answers).toEqual([true, true, true, false, false, true])
+  })
+
+  it('alternating neighbour zones count as one approach', async () => {
+    // Широкая свеча каждый час задевает зоны 110 и 111.2, а край волны прыгает, поэтому выбор зоны чередуется.
+    const d = detector({
+      levels: [level(110), level(111.2)],
+      last: () => ({ low: 109.3, high: 111.4 }),
+      small: (now) => waves('up', 100, ((now - NOW) / HOUR) % 2 === 0 ? 10.3 : 11.5, 0.95),
+    })
+    const answers = []
+    for (let hour = 0; hour < 5; hour++) answers.push((await ask(d, NOW + hour * HOUR)) !== null)
+
+    expect(answers).toEqual([true, true, true, false, false])
+  })
+
+  it('a touch without an exhausted wave between asks does not restart the count', async () => {
+    const d = detector({ small: (now) => (now === NOW + 2 * HOUR ? QUIET : waves('up', 100, 10.3, 0.95)) })
+    const answers = []
+    for (let hour = 0; hour < 5; hour++) answers.push((await ask(d, NOW + hour * HOUR)) !== null)
+
+    expect(answers).toEqual([true, true, false, true, false])
   })
 
   it('repeats of one coin do not affect another', async () => {
