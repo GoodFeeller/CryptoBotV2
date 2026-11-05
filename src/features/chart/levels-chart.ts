@@ -23,6 +23,7 @@ const COLORS = {
   bounceBelow: '#e040fb',
   falseBreak: '#ffffff',
   zone: '#ff5252',
+  mark: '#ffeb3b',
 }
 
 /** Линия поверх свечей, например EMA. Значения идут по свечам, undefined там, где значения нет. */
@@ -37,9 +38,11 @@ export interface LevelsChartInput {
   candles: Candle[]
   levels: Level[]
   lines?: ChartLine[]
+  /** Метки на свечах, например места срабатывания детектора. Вне свечей картинки не рисуются. */
+  marks?: { time: number; price: number; label: string }[]
 }
 
-export function buildLevelsSvg({ title, candles, levels, lines = [] }: LevelsChartInput): string {
+export function buildLevelsSvg({ title, candles, levels, lines = [], marks = [] }: LevelsChartInput): string {
   const plotWidth = WIDTH - MARGIN.left - MARGIN.right
   const plotHeight = HEIGHT - MARGIN.top - MARGIN.bottom
   // Шкала включает и линии: иначе далёкая EMA ушла бы за край картинки.
@@ -138,6 +141,14 @@ export function buildLevelsSvg({ title, candles, levels, lines = [] }: LevelsCha
         parts.push(`<path data-role="bounce" d="M${x} ${lineY - 4} l-6 -10 h12 z" fill="${COLORS.bounceBelow}"/>`)
       }
     }
+  }
+
+  for (const mark of marks) {
+    if (candles.length === 0 || mark.time < candles[0]!.openTime || mark.time >= candles.at(-1)!.closeTime) continue
+    const x = xOfTime(mark.time)
+    const markY = y(mark.price)
+    parts.push(`<circle data-role="mark" cx="${x}" cy="${markY}" r="6" fill="none" stroke="${COLORS.mark}" stroke-width="2"/>`)
+    parts.push(label(x - 20, markY - 12, mark.label, COLORS.mark, 12))
   }
 
   parts.push('</svg>')

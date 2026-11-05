@@ -110,3 +110,12 @@ describe('lines over candles', () => {
     expect(svg).not.toContain('отскок сверху')
   })
 })
+
+describe('marks', () => {
+  it('draws a mark with its label', () => {
+    const svg = buildLevelsSvg({ title: 't', candles: CANDLES, levels: [], marks: [{ time: T0 + 10 * DAY, price: 111, label: 'зона 111' }] })
+
+    expect(svg).toContain('data-role="mark"')
+    expect(svg).toContain('зона 111')
+  })
+})

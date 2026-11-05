@@ -15,7 +15,8 @@
     "levels": "tsx src/app/levels.ts",
     "ema": "tsx src/app/ema.ts",
     "waves": "tsx src/app/waves.ts",
-    "structure": "tsx src/app/structure.ts"
+    "structure": "tsx src/app/structure.ts",
+    "situations": "tsx src/app/situations.ts"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^1.3.0",
