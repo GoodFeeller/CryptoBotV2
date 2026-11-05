@@ -9,6 +9,7 @@
 | `types.ts` | свечи, ситуации, решения Claude, ордера, позиции, сделки, события брокера |
 | `ports.ts` | интерфейсы: `Clock`, `MarketData`, `SignalDetector`, `TradeAdvisor`, `RiskGate`, `Broker`, `ChartRenderer`, `Notifier` |
 | `timeframes.ts` | длины таймфреймов и проверка закрытия свечи |
+| `atr.ts` | ATR по свечам: общий для уровней и EMA |
 | `trade-rules.ts` | проверка решений советника, расчёт объёма и потери при стопе; применяется при любом советнике |
 | `errors.ts` | `FatalRunError`: ошибка, после которой продолжать нельзя |
 

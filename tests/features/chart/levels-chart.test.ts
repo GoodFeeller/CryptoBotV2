@@ -92,3 +92,21 @@ describe('levels chart', () => {
     expect([...renderLevelsPng({ title: 't', candles: [], levels: [] }).slice(0, 4)]).toEqual(signature)
   })
 })
+
+describe('lines over candles', () => {
+  const values = CANDLES.map((candle, i) => (i < 10 ? undefined : candle.close - 1))
+
+  it('draws a line only where it has values and labels it at the right edge', () => {
+    const svg = buildLevelsSvg({ title: 't', candles: CANDLES, levels: [], lines: [{ label: 'EMA 20', color: '#ffeb3b', values }] })
+    const points = /<polyline data-role="line" points="([^"]+)"/.exec(svg)?.[1]?.trim().split(' ')
+
+    expect(points).toHaveLength(20)
+    expect(svg).toContain('EMA 20 · 129')
+  })
+
+  it('without levels there is no legend for level marks', () => {
+    const svg = buildLevelsSvg({ title: 't', candles: CANDLES, levels: [], lines: [{ label: 'EMA 20', color: '#ffeb3b', values }] })
+
+    expect(svg).not.toContain('отскок сверху')
+  })
+})

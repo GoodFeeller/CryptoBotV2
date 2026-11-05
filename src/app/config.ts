@@ -49,6 +49,13 @@ const ConfigSchema = z.strictObject({
       cacheWritePerM: z.number().nonnegative(),
     }),
   }),
+  ema: z.strictObject({
+    periods: z.array(PositiveInt).min(1),
+    timeframes: z.array(Timeframe).min(1),
+    slopeBars: PositiveInt,
+    atrPeriod: PositiveInt,
+    warmupFactor: z.number().min(1),
+  }),
   backtest: z.strictObject({ initialBalance: z.number().positive() }),
   paths: z.strictObject({ data: z.string().min(1) }),
 })

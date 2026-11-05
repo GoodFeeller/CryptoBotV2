@@ -2,7 +2,8 @@
 // основные вместе с локальными. В логике бота это пока не участвует.
 import { mkdirSync, writeFileSync } from 'node:fs'
 import { renderLevelsPng } from '../features/chart/levels-chart.js'
-import { combineLevels, findLevels, lastAtr, LOCAL_LEVELS, MAJOR_LEVELS } from '../features/levels/find-levels.js'
+import { lastAtr } from '../core/atr.js'
+import { combineLevels, findLevels, LOCAL_LEVELS, MAJOR_LEVELS } from '../features/levels/find-levels.js'
 import { BybitClient } from '../features/market-data/bybit-client.js'
 import { createRawMarket, dataPath } from './compose.js'
 import { loadConfig } from './config.js'

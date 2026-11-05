@@ -25,17 +25,27 @@ const COLORS = {
   zone: '#ff5252',
 }
 
+/** Линия поверх свечей, например EMA. Значения идут по свечам, undefined там, где значения нет. */
+export interface ChartLine {
+  label: string
+  color: string
+  values: (number | undefined)[]
+}
+
 export interface LevelsChartInput {
   title: string
   candles: Candle[]
   levels: Level[]
+  lines?: ChartLine[]
 }
 
-export function buildLevelsSvg({ title, candles, levels }: LevelsChartInput): string {
+export function buildLevelsSvg({ title, candles, levels, lines = [] }: LevelsChartInput): string {
   const plotWidth = WIDTH - MARGIN.left - MARGIN.right
   const plotHeight = HEIGHT - MARGIN.top - MARGIN.bottom
-  const lows = candles.map((candle) => candle.low)
-  const highs = candles.map((candle) => candle.high)
+  // Шкала включает и линии: иначе далёкая EMA ушла бы за край картинки.
+  const lineValues = lines.flatMap((line) => line.values.slice(0, candles.length).filter((value) => value !== undefined))
+  const lows = [...candles.map((candle) => candle.low), ...lineValues]
+  const highs = [...candles.map((candle) => candle.high), ...lineValues]
   const rawMin = lows.length ? Math.min(...lows) : 0
   const rawMax = highs.length ? Math.max(...highs) : 1
   const padding = (rawMax - rawMin || 1) * 0.04
@@ -55,8 +65,10 @@ export function buildLevelsSvg({ title, candles, levels }: LevelsChartInput): st
     `<svg xmlns="http://www.w3.org/2000/svg" width="${WIDTH}" height="${HEIGHT}">`,
     `<rect width="${WIDTH}" height="${HEIGHT}" fill="${COLORS.background}"/>`,
     label(MARGIN.left, 28, title, COLORS.text, 20),
-    label(WIDTH - MARGIN.right - 470, 28, '▲ отскок сверху   ▼ отскок снизу   ○ ложный пробой   ▭ проторговка', COLORS.muted, 13),
   ]
+  if (levels.length > 0) {
+    parts.push(label(WIDTH - MARGIN.right - 470, 28, '▲ отскок сверху   ▼ отскок снизу   ○ ложный пробой   ▭ проторговка', COLORS.muted, 13))
+  }
 
   const visible = levels
     .filter((level) => level.price >= min && level.price <= max)
@@ -84,6 +96,22 @@ export function buildLevelsSvg({ title, candles, levels }: LevelsChartInput): st
   })
 
   let lastLabelY = -Infinity
+  const lastValue = (line: ChartLine): number | undefined => line.values.slice(0, candles.length).findLast((value) => value !== undefined)
+  // Подписи идут сверху вниз, как и линии справа, иначе сдвиг от наложения их перепутал бы.
+  const byHeight = [...lines].sort((a, b) => (lastValue(b) ?? 0) - (lastValue(a) ?? 0))
+  for (const line of byHeight) {
+    const points = candles.flatMap((_, index) => {
+      const value = line.values[index]
+      return value === undefined ? [] : [`${xOfIndex(index)},${y(value)}`]
+    })
+    if (points.length === 0) continue
+    parts.push(`<polyline data-role="line" points="${points.join(' ')}" fill="none" stroke="${line.color}" stroke-width="2"/>`)
+    const last = lastValue(line)!
+    const labelY = Math.max(y(last) + 4, lastLabelY + LABEL_HEIGHT)
+    lastLabelY = labelY
+    parts.push(label(WIDTH - MARGIN.right + 6, labelY, `${line.label} · ${formatPrice(last)}`, line.color, 13))
+  }
+
   for (const level of visible) {
     const major = level.class === 'major'
     const traded = level.status !== 'active'

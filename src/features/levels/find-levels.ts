@@ -2,6 +2,7 @@
 // до момента T не может знать будущего. Уровень не отменяется пробоем: цена может ходить сквозь него, как на скриншоте. Отскок
 // засчитывается, только когда цена реально ушла от уровня, иначе дрожание у цены давало бы десятки ложных отскоков. Все пороги
 // в ATR, чтобы одни и те же настройки работали на BTC и на мелких монетах. Значения подобраны как начальные и будут уточняться по картинкам.
+import { computeAtr } from '../../core/atr.js'
 import type { Candle, Level, LevelClass, LevelEvent, LevelOrigin, LevelZone } from '../../core/types.js'
 
 export interface LevelOptions {
@@ -128,22 +129,6 @@ export function findLevels(candles: Candle[], options: LevelOptions): Level[] {
 export function combineLevels(major: Level[], local: Level[], tolerance: number): Level[] {
   const separate = local.filter((item) => major.every((level) => Math.abs(level.price - item.price) > tolerance))
   return [...major, ...separate]
-}
-
-export function lastAtr(candles: Candle[], period: number): number {
-  return computeAtr(candles, period).at(-1) ?? 0
-}
-
-function computeAtr(candles: Candle[], period: number): number[] {
-  const result: number[] = []
-  candles.forEach((candle, i) => {
-    const previousClose = candles[i - 1]?.close ?? candle.close
-    const range = Math.max(candle.high - candle.low, Math.abs(candle.high - previousClose), Math.abs(candle.low - previousClose))
-    const previous = result[i - 1]
-    if (previous === undefined) result.push(range)
-    else result.push((previous * (Math.min(i, period) - 1) + range) / Math.min(i, period))
-  })
-  return result
 }
 
 /** Волны: разворот подтверждается, только когда цена ушла от экстремума на swingAtr. Самая первая точка разворотом не считается. */
