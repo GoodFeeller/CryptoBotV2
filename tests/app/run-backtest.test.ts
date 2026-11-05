@@ -212,8 +212,8 @@ describe('runBacktest', () => {
   })
 
   describe('session decisions', () => {
-    const pendingDir = () => join(dir, 'decisions', 'v1', 'pending')
-    const answersDir = () => join(dir, 'decisions', 'v1', 'answers')
+    const pendingDir = () => join(dir, 'decisions', config.claude.promptVersion, 'pending')
+    const answersDir = () => join(dir, 'decisions', config.claude.promptVersion, 'answers')
 
     function answerPending(): number {
       const files = readdirSync(pendingDir())

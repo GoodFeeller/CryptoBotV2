@@ -1,16 +1,25 @@
 // [REVIEW i-code#22] Обезличивание запроса: без тикера и дат, цены в шкале «текущая цена = 100». Иначе модель может узнать монету
 // и период и вспомнить, что было дальше, и бэктест окажется завышен. Позиция тоже передаётся только полями цены и состояния.
 // Шкала строится от текущей цены, а не от последнего закрытия, чтобы правило «текущая цена всегда 100» было точным.
-import type { Candle, CandleWindows, EntryRequest, ReviewRequest, Side, Timeframe } from '../../core/types.js'
+import type { Candle, CandleWindows, EntryRequest, MarketPicture, ReviewRequest, Side, StructurePoint, Timeframe, WavePicture } from '../../core/types.js'
 
 const HOUR_MS = 3_600_000
 
 type AnonCandle = [open: number, high: number, low: number, close: number, relativeVolume: number]
 type AnonCandles = Partial<Record<Timeframe, AnonCandle[]>>
 
+/** Картина рынка в шкале запроса: точки структуры вместо времени получают «свечей назад» по часовику. */
+export type AnonPicture = Omit<MarketPicture, 'structure'> & {
+  structure: Omit<MarketPicture['structure'], 'highs' | 'lows'> & { highs: AnonPoint[]; lows: AnonPoint[] }
+}
+
+interface AnonPoint {
+  barsAgo: number
+  price: number
+}
+
 export interface AnonEntryBody {
-  // Картина рынка обезличивается отдельно, пока уходит только тип ситуации.
-  situation: { kind: string; picture: null }
+  situation: { kind: string; picture: AnonPicture | null }
   currentPrice: number
   maxLossPct: number
   candles: AnonCandles
@@ -41,7 +50,7 @@ export function anonymizeEntry(request: EntryRequest): Anonymized<AnonEntryBody>
     body: {
       situation: {
         kind: situation.kind,
-        picture: null,
+        picture: situation.picture ? anonymizePicture(situation.picture, situation.at, toScale) : null,
       },
       currentPrice: toScale(currentPrice),
       maxLossPct,
@@ -69,6 +78,29 @@ export function anonymizeReview(request: ReviewRequest): Anonymized<AnonReviewBo
       candles: anonymizeCandles(candles, toScale),
     },
     ...scaleOf(currentPrice),
+  }
+}
+
+/** Все цены картины переводятся в шкалу; доли, расстояния в ATR и ATR в процентах уже относительные. */
+function anonymizePicture(picture: MarketPicture, at: number, toScale: (value: number) => number): AnonPicture {
+  const point = ({ time, price }: StructurePoint): AnonPoint => ({ barsAgo: Math.round((at - time) / HOUR_MS), price: toScale(price) })
+  const wave = ({ averageAtr, current, lastWave }: WavePicture): WavePicture => ({
+    averageAtr,
+    current: { ...current, startPrice: toScale(current.startPrice) },
+    lastWave: { direction: lastWave.direction, top: toScale(lastWave.top), middle: toScale(lastWave.middle), bottom: toScale(lastWave.bottom) },
+  })
+  const ema: AnonPicture['ema'] = {}
+  for (const [tf, item] of Object.entries(picture.ema) as [Timeframe, NonNullable<MarketPicture['ema'][Timeframe]>][]) {
+    ema[tf] = { stack: item.stack, emas: item.emas.map((reading) => ({ ...reading, value: toScale(reading.value) })) }
+  }
+  const { zone, structure } = picture
+  return {
+    zone: { price: toScale(zone.price), low: toScale(zone.low), high: toScale(zone.high), reasons: zone.reasons },
+    levels: picture.levels.map((level) => ({ ...level, price: toScale(level.price) })),
+    waves: { small: wave(picture.waves.small), big: wave(picture.waves.big) },
+    structure: { ...structure, highs: structure.highs.map(point), lows: structure.lows.map(point) },
+    ema,
+    atrPct: picture.atrPct,
   }
 }
 
