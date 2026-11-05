@@ -10,6 +10,7 @@
     "check": "tsc --noEmit && vitest run && depcruise src",
     "test": "vitest run",
     "backtest": "tsx src/app/backtest.ts",
+    "backtest:sessions": "tsx src/app/backtest-sessions.ts",
     "live": "tsx src/app/live.ts",
     "notify-test": "tsx src/app/notify-test.ts",
     "levels": "tsx src/app/levels.ts",

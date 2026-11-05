@@ -9,6 +9,7 @@ import type { Candle, FundingRate, Instrument, Timeframe } from '../../src/core/
 import type { ClaudeCall } from '../../src/features/claude/api-source.js'
 import type { BybitApi } from '../../src/features/market-data/bybit-market-data.js'
 import { EveryNCandlesDetector } from '../../src/features/signals/every-n-candles.js'
+import { backtestWithSessions } from '../../src/app/run-sessions.js'
 
 /** Конвейер проверяем на заглушке: на синтетических свечах детектор зон честно молчит. */
 const placeholder = () => new EveryNCandlesDetector({ n: 4, timeframe: '1h' })
@@ -256,6 +257,40 @@ describe('runBacktest', () => {
       const repeat = await run({ advisor: 'session' }, { runId: 'again' })
       expect(repeat.report).toEqual(result.report)
     }, 60_000)
+  })
+
+  describe('backtestWithSessions', () => {
+    const answer = async (input: { prompt: string }) =>
+      'situation' in JSON.parse(input.prompt)
+        ? { enter: true, side: 'long', entryPrice: 99, leverage: 5, notionalPct: 20, stop: 97, take: 102, reason: 'тест' }
+        : { newStop: null, newTake: null, closeNow: false, reason: 'тест' }
+
+    it('answers pending requests with sessions until the run reaches the end', async () => {
+      const cycles: number[] = []
+      const result = await backtestWithSessions(
+        { from: FROM, to: TO, mode: 'research' },
+        { config, api, now: () => NOW, runId: 'test', makeDetector: placeholder },
+        { runner: answer, concurrency: 2, maxCycles: 400, onCycle: (pending) => cycles.push(pending) },
+      )
+
+      expect(result.status).toBe('ok')
+      expect(result.report?.decisionSource).toBe('session')
+      expect(cycles.length).toBeGreaterThan(1)
+    }, 60_000)
+
+    it('a failed session stops the run with its error', async () => {
+      const failing = async () => {
+        throw new Error('лимит подписки')
+      }
+
+      await expect(
+        backtestWithSessions(
+          { from: FROM, to: TO, mode: 'research' },
+          { config, api, now: () => NOW, runId: 'test', makeDetector: placeholder },
+          { runner: failing, concurrency: 1, maxCycles: 400 },
+        ),
+      ).rejects.toThrow('лимит подписки')
+    })
   })
 
   it('a missing API key stops the claude mode before the run', async () => {

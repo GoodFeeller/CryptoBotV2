@@ -9,6 +9,7 @@
 | `config.ts` | чтение и проверка конфига, загрузка `.env`, чтение секретов |
 | `compose.ts` | общая сборка; здесь подключается детектор зон (тесты могут подменить его через `makeDetector`) |
 | `market-analysis.ts` | собирает уровни, EMA, волны и структуру в `MarketAnalysis` для детектора |
+| `backtest-sessions.ts`, `run-sessions.ts`, `session-answerer.ts` | `npm run backtest:sessions`: бэктест, где на запросы отвечают изолированные сессии Claude Code (`claude -p` без инструментов, MCP и настроек, в пустой папке) |
 | `situations.ts` | `npm run situations`: прогон детектора зон по истории без Claude, список ситуаций и картинки в `data/situations/` |
 | `run-loop.ts` | цикл бэктеста: часы, фандинг, свеча, движок |
 | `run-backtest.ts`, `backtest.ts` | прогон и его командная строка |
