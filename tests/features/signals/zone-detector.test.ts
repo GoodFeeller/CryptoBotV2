@@ -29,7 +29,7 @@ function level(price: number, status: Level['status'] = 'active'): Level {
   return { class: 'major', price, status, origins: ['pivot'], bornAt: 0, bounces: 4, falseBreaks: 1, flips: 1, strength: 6, events: [], zones: [] }
 }
 
-function waves(direction: WaveDirection, start: number, length: number, share: number): WaveSnapshot {
+function waves(direction: WaveDirection, start: number, length: number, share: number): Extract<WaveSnapshot, { ok: true }> {
   const extreme = direction === 'up' ? start + length : start - length
   return {
     ok: true,
