@@ -56,8 +56,9 @@ export interface LevelZone {
 export interface Level {
   class: LevelClass
   price: number
-  /** traded: цена долго ходила вокруг уровня, и пока не будет нового отскока, использовать его нельзя. */
-  status: 'active' | 'traded'
+  /** traded: цена долго ходила вокруг уровня, и пока не будет нового отскока, использовать его нельзя.
+   * broken: уровень пробили, и с новой стороны от него ещё не было отскока. Использовать его тоже нельзя. */
+  status: 'active' | 'traded' | 'broken'
   origins: LevelOrigin[]
   /** Момент, когда уровень стал известен. Раньше него уровень использовать нельзя. */
   bornAt: number

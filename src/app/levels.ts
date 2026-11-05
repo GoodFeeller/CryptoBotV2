@@ -14,8 +14,10 @@ const SAME_LEVEL_ATR = 0.5
 
 const config = loadConfig()
 const symbols = process.argv[2] ? process.argv[2].split(',') : config.symbols
-const market = createRawMarket(config, new BybitClient(), Date.now)
-const now = Date.now()
+// Необязательная дата вторым аргументом рисует уровни так, как они выглядели в тот момент.
+const now = process.argv[3] ? Date.parse(process.argv[3]) : Date.now()
+if (Number.isNaN(now)) throw new Error(`Не понял дату: ${process.argv[3]}`)
+const market = createRawMarket(config, new BybitClient(), () => now)
 const dir = dataPath(config, 'levels')
 mkdirSync(dir, { recursive: true })
 
@@ -38,7 +40,7 @@ for (const symbol of symbols) {
   console.log(`\n${symbol}: цена ${daily.at(-1)?.close}, дневных свечей ${daily.length}`)
   for (const level of combined) {
     console.log(
-      `  ${level.class === 'major' ? 'основной ' : 'локальный'} ${level.price}  ${level.status === 'traded' ? 'ПРОТОРГОВАН ' : ''}отскоков ${level.bounces}, ложных ${level.falseBreaks}, зерк. ${level.flips}, сила ${level.strength}, ${level.origins.join('+')}`,
+      `  ${level.class === 'major' ? 'основной ' : 'локальный'} ${level.price}  ${{ active: '', traded: 'ПРОТОРГОВАН ', broken: 'ПРОБИТ ' }[level.status]}отскоков ${level.bounces}, ложных ${level.falseBreaks}, зерк. ${level.flips}, сила ${level.strength}, ${level.origins.join('+')}`,
     )
   }
 }

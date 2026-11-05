@@ -50,6 +50,13 @@ describe('levels chart', () => {
     expect(/<line data-role="level-local"[^>]*stroke-dasharray/.test(local)).toBe(true)
   })
 
+  it('a broken level looks inactive and is labelled', () => {
+    const broken = buildLevelsSvg({ title: 't', candles: CANDLES, levels: [{ ...LEVEL, status: 'broken' }] })
+
+    expect(broken).toContain('пробит')
+    expect(/<line data-role="level-major"[^>]*stroke-dasharray/.test(broken)).toBe(true)
+  })
+
   it('a traded level looks different and is labelled', () => {
     const traded = buildLevelsSvg({ title: 't', candles: CANDLES, levels: [{ ...LEVEL, status: 'traded' }] })
 

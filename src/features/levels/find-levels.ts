@@ -13,6 +13,8 @@ export interface LevelOptions {
   clusterAtr: number
   /** На таком расстоянии цена считается у уровня. */
   touchAtr: number
+  /** Закрытие дальше этого за уровнем считается закрытием за ним: из таких складываются ложные пробои и пробои. */
+  closeBeyondAtr: number
   /** Так далеко цена должна уйти, чтобы касание стало отскоком. */
   departAtr: number
   /** Глубже этого касание тенью считается ложным пробоем. */
@@ -32,6 +34,12 @@ export interface LevelOptions {
   /** Подтверждение: после касания цена уходит на confirmAtr не дольше чем за confirmWithinBars свечей. */
   confirmAtr: number
   confirmWithinBars: number
+  /** Второе подтверждение: столько обычных отскоков подряд с одной стороны, когда цена ушла от проторговки на confirmAtr и вернулась. */
+  confirmBounces: number
+  /** Столько закрытий подряд за уровнем делают пробой настоящим. Меньше и возврат назад это неудачная попытка пробить уровень. */
+  heldCloses: number
+  /** Уровень пробит, если после настоящего пробоя цена ушла от него так далеко, а отскока с тех пор не было. */
+  brokenAtr: number
   /** Уровень, который пробивают чаще, чем он держит, не показывается. */
   maxFlipShare: number
   minBounces: number
@@ -45,10 +53,12 @@ export const MAJOR_LEVELS: LevelOptions = {
   atrPeriod: 14,
   swingAtr: 2,
   clusterAtr: 0.5,
-  touchAtr: 0.25,
+  touchAtr: 0.2,
+  closeBeyondAtr: 0.25,
   departAtr: 1,
   falseBreakAtr: 0.5,
   breakCloses: 2,
+  heldCloses: 3,
   paranormalAtr: 2,
   consolidationBars: 10,
   consolidationTouches: 3,
@@ -59,6 +69,8 @@ export const MAJOR_LEVELS: LevelOptions = {
   tradedAwayBars: 3,
   confirmAtr: 2,
   confirmWithinBars: 5,
+  confirmBounces: 2,
+  brokenAtr: 1,
   maxFlipShare: 0.5,
   minBounces: 2,
   maxLevels: 6,
@@ -246,7 +258,7 @@ function buildLevel(group: Candidate[], candles: Candle[], atr: number[], option
   const price = Number(median(group.map((candidate) => candidate.price)).toPrecision(8))
   const earliest = group.reduce((first, candidate) => (candidate.index < first.index ? candidate : first))
   const confirmedIndex = Math.min(...group.map((candidate) => candidate.confirmedIndex))
-  const { events, flips, traded } = walkLevel(price, earliest.index, earliest.side, candles, atr, options)
+  const { events, flips, traded, broken } = walkLevel(price, earliest.index, earliest.side, candles, atr, options)
   const origins = [...new Set(group.map((candidate) => candidate.origin))]
   const bounces = events.length
   const falseBreaks = events.filter((event) => event.type === 'false_break').length
@@ -254,7 +266,7 @@ function buildLevel(group: Candidate[], candles: Candle[], atr: number[], option
   return {
     class: options.levelClass,
     price,
-    status: traded ? 'traded' : 'active',
+    status: broken ? 'broken' : traded ? 'traded' : 'active',
     origins,
     bornAt: candles[confirmedIndex]!.closeTime,
     bounces,
@@ -278,7 +290,7 @@ function walkLevel(
   candles: Candle[],
   atr: number[],
   options: LevelOptions,
-): { events: LevelEvent[]; flips: number; traded: boolean } {
+): { events: LevelEvent[]; flips: number; traded: boolean; broken: boolean } {
   const events: LevelEvent[] = []
   let side = startSide
   let armed = true
@@ -288,14 +300,24 @@ function walkLevel(
   let confirmingTouch: number | null = null
   let closesBeyond = 0
   let brokenSinceLastBounce = false
+  // Статус «пробит» считается отдельно от смены стороны. Смена стороны это только попытка пробоя: если цена вернулась раньше,
+  // чем закрылась за уровнем heldCloses раз, уровень устоял. Пробит он, когда пробой настоящий и цена ушла от уровня на brokenAtr.
+  let broken = false
+  let far = false
+  let attempt: { broken: boolean; far: boolean } | null = null
+  let closesOnNewSide = 0
   let flips = 0
   let crossings = 0
   let barsAway = 0
   let traded = false
+  // Отскоки, которые цена дала уровню после проторговки, пока его снова не пересекли. Считаются, только когда цена сначала ушла
+  // от уровня на confirmAtr: отскоки на выходе из боковика это ещё сама проторговка.
+  let bouncesSinceTraded = 0
+  let leftSinceTraded = false
 
   for (let i = start; i < candles.length; i++) {
     const candle = candles[i]!
-    const tolerance = options.touchAtr * atr[i]!
+    const tolerance = options.closeBeyondAtr * atr[i]!
     const above = side === 'above'
     const piercedBy = above ? price - candle.low : candle.high - price
     const closedBeyond = above ? candle.close < price - tolerance : candle.close > price + tolerance
@@ -305,11 +327,29 @@ function walkLevel(
     if (distance <= options.tradedNearAtr * atr[i]!) {
       barsAway = 0
       const previousClose = candles[i - 1]?.close ?? candle.close
-      if (previousClose > price !== candle.close > price) crossings++
+      if (previousClose > price !== candle.close > price) {
+        crossings++
+        bouncesSinceTraded = 0
+        leftSinceTraded = false
+      }
       if (crossings >= options.tradedCrossings) traded = true
     } else if (++barsAway >= options.tradedAwayBars) {
       crossings = 0
     }
+    if (traded && distance >= options.confirmAtr * atr[i]!) leftSinceTraded = true
+    const holdBreak = (): void => {
+      if (attempt && closesOnNewSide >= options.heldCloses) {
+        attempt = null
+        broken = true
+        far = false
+      }
+    }
+    if (attempt) {
+      const held = above ? candle.close > price + tolerance : candle.close < price - tolerance
+      closesOnNewSide = held ? closesOnNewSide + 1 : 0
+      holdBreak()
+    }
+    if (broken && !attempt && distance >= options.brokenAtr * atr[i]!) far = true
 
     if (closedBeyond) {
       pending = null
@@ -317,9 +357,19 @@ function walkLevel(
       closesBeyond++
       if (closesBeyond >= options.breakCloses) {
         side = above ? 'below' : 'above'
+        bouncesSinceTraded = 0
         closesBeyond = 0
         armed = false
         brokenSinceLastBounce = true
+        if (attempt) {
+          // Цена вернулась, не закрепившись за уровнем: попытка не удалась, всё как до неё.
+          ;({ broken, far } = attempt)
+          attempt = null
+        } else {
+          attempt = { broken, far }
+          closesOnNewSide = options.breakCloses
+          holdBreak()
+        }
       }
       continue
     }
@@ -330,7 +380,7 @@ function walkLevel(
       touchIndex = i
       confirmingTouch = null
       pending = { time: candle.openTime, type: 'false_break', side }
-    } else if (armed && piercedBy >= -tolerance) {
+    } else if (armed && piercedBy >= -options.touchAtr * atr[i]!) {
       armed = false
       touchIndex = i
       confirmingTouch = null
@@ -345,12 +395,24 @@ function walkLevel(
       armed = true
       if (pending) {
         events.push(pending)
-        if (pending.type === 'bounce') confirmingTouch = touchIndex
+        if (pending.type === 'bounce') {
+          confirmingTouch = touchIndex
+          // Уровень, от которого цена снова и снова отскакивает с одной стороны, опять работает, даже если уходы были медленные.
+          if (traded && leftSinceTraded && ++bouncesSinceTraded >= options.confirmBounces) {
+            crossings = 0
+            traded = false
+            bouncesSinceTraded = 0
+            leftSinceTraded = false
+          }
+        }
         pending = null
         if (brokenSinceLastBounce) {
           flips++
           brokenSinceLastBounce = false
         }
+        broken = false
+        far = false
+        attempt = null
       }
     }
 
@@ -365,7 +427,8 @@ function walkLevel(
       }
     }
   }
-  return { events, flips, traded }
+  // Пробитый уровень работает снова только после отскока. Возврат цены назад без отскока его не восстанавливает.
+  return { events, flips, traded, broken: broken && far }
 }
 
 function mergeZones(zones: LevelZone[]): LevelZone[] {

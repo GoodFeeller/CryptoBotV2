@@ -8,6 +8,9 @@ const WIDTH = 1500
 const HEIGHT = 860
 const MARGIN = { top: 44, right: 300, bottom: 28, left: 16 }
 const LABEL_HEIGHT = 18
+/** Неактивный уровень рисуется серым пунктиром, а подпись говорит почему. */
+const STATUS_LABEL: Record<Level['status'], string> = { active: '', traded: ' · проторгован', broken: ' · пробит' }
+
 const COLORS = {
   background: '#131722',
   text: '#d1d4dc',
@@ -83,7 +86,7 @@ export function buildLevelsSvg({ title, candles, levels }: LevelsChartInput): st
   let lastLabelY = -Infinity
   for (const level of visible) {
     const major = level.class === 'major'
-    const traded = level.status === 'traded'
+    const traded = level.status !== 'active'
     const color = traded ? COLORS.muted : major ? COLORS.major : COLORS.local
     const lineY = y(level.price)
     const width = major ? 2 : 1
@@ -94,7 +97,7 @@ export function buildLevelsSvg({ title, candles, levels }: LevelsChartInput): st
 
     const labelY = Math.max(lineY + 4, lastLabelY + LABEL_HEIGHT)
     lastLabelY = labelY
-    parts.push(label(WIDTH - MARGIN.right + 6, labelY, `${formatPrice(level.price)} · отскоков ${level.bounces}${level.flips ? ' · зерк.' : ''}${traded ? ' · проторгован' : ''}`, color, 13))
+    parts.push(label(WIDTH - MARGIN.right + 6, labelY, `${formatPrice(level.price)} · отскоков ${level.bounces}${level.flips ? ' · зерк.' : ''}${STATUS_LABEL[level.status]}`, color, 13))
 
     for (const event of level.events) {
       if (candles.length === 0 || event.time < candles[0]!.openTime) continue

@@ -78,6 +78,14 @@ describe('findLevels', () => {
     expect(withJitter?.bounces).toBe(1)
   })
 
+  it('a wick that stops short of the level is not a touch', () => {
+    // Недолёт около 0.95 при ATR около 4.2: ближе 0.25 ATR, но дальше 0.2 ATR.
+    const touched = near(findLevels(path([100, 120, 100, 120, 100, 120, 100, 120]), OPTIONS), 100, 0.5)!
+    const short = near(findLevels(path([100, 120, 100, 120, 100, 120, 100.95, 120]), OPTIONS), 100, 0.5)!
+
+    expect(short.bounces).toBe(touched.bounces - 1)
+  })
+
   it('a false break keeps the level and is counted', () => {
     const before = path([100, 120, 100, 120])
     const dip = before.length
@@ -113,6 +121,48 @@ describe('findLevels', () => {
     expect(level.flips).toBe(1)
     expect(level.events.at(-1)?.side).toBe('below')
     expect(level.events[0]?.side).toBe('above')
+  })
+
+  it('a broken level without a bounce from the new side is broken', () => {
+    const level = near(findLevels(path([100, 120, 100, 120, 100, 80, 70, 60]), OPTIONS), 100)!
+
+    expect(level.status).toBe('broken')
+  })
+
+  it('price just past the level is a test, not yet a break', () => {
+    const level = near(findLevels(path([100, 120, 100, 120, 100, 120, 100, 98]), OPTIONS), 100)!
+
+    expect(level.status).toBe('active')
+  })
+
+  it('two closes above a resistance and a fall far below do not break it', () => {
+    const base = path([120, 100, 120, 100, 116])
+    const closes = [118, 122, 123, 118, 112, 106, 100, 94, 88, 82]
+    const candles = [...base, ...closes.map((close, i) => bar(base.length + i, closes[i - 1] ?? 116, close))]
+    const level = near(findLevels(candles, OPTIONS), 120)!
+
+    expect(level.status).toBe('active')
+  })
+
+  it('three closes above a resistance and a fall far below break it', () => {
+    const base = path([120, 100, 120, 100, 116])
+    const closes = [118, 121.5, 123, 121.4, 117, 112, 106, 100, 94, 88, 82]
+    const candles = [...base, ...closes.map((close, i) => bar(base.length + i, closes[i - 1] ?? 116, close))]
+    const level = near(findLevels(candles, OPTIONS), 120)!
+
+    expect(level.status).toBe('broken')
+  })
+
+  it('a far trip above a resistance and back down without a bounce leaves it broken', () => {
+    const level = near(findLevels(path([120, 100, 120, 100, 120, 140, 100, 90, 80]), OPTIONS), 120)!
+
+    expect(level.status).toBe('broken')
+  })
+
+  it('a bounce from the new side confirms a broken level', () => {
+    const level = near(findLevels(path([100, 120, 100, 120, 100, 80, 100, 80]), OPTIONS), 100)!
+
+    expect(level.status).toBe('active')
   })
 
   it('a mirror level is stronger than the same level without a flip', () => {
@@ -261,6 +311,30 @@ describe('traded levels', () => {
     const slow = continued(chopped(), [101, 101.5, 102, 102.5, 103, 103.5, 104, 104.5, 105, 106, 107, 108])
 
     expect(near(findLevels(slow, TRADED), 100, 0.5)?.status).toBe('traded')
+  })
+
+  /** Медленные отскоки от 100.3: ровный дрейф по 1 за свечу. Длинные верхние тени держат ATR высоким, поэтому цена уходит дальше
+   * 1 ATR, но не рывком на 2 ATR. Тени смотрят от уровня и не добавляют минимумов рядом с ним. С leave цена сначала уходит от
+   * проторговки далеко и только потом возвращается к уровню. */
+  function slowBounces(candles: Candle[], count: number, leave: boolean): Candle[] {
+    const rise = [101.3, 102.3, 103.3, 104.3, 105.3, 106.3, 107.3, 108.3]
+    const fall = [107.3, 106.3, 105.3, 104.3, 103.3, 102.3, 101.3, 100.3]
+    const away = leave ? [104, 108, 112, 116, 120, 116, 112, 108, 104] : []
+    const closes = [...away, 100.3, ...Array.from({ length: count }, () => [...rise, ...fall]).flat(), ...rise]
+    const next = candles.length
+    return [...candles, ...closes.map((close, i) => bar(next + i, closes[i - 1] ?? candles.at(-1)!.close, close, 3, 0.1))]
+  }
+
+  it('one slow bounce after a return is not a confirmation', () => {
+    expect(near(findLevels(slowBounces(chopped(), 0, true), TRADED), 100, 0.5)?.status).toBe('traded')
+  })
+
+  it('two slow bounces on one side after a return confirm the level again', () => {
+    expect(near(findLevels(slowBounces(chopped(), 1, true), TRADED), 100, 0.5)?.status).toBe('active')
+  })
+
+  it('slow bounces right after the chop, before price has left, are still the chop', () => {
+    expect(near(findLevels(slowBounces(chopped(), 2, false), TRADED), 100, 0.5)?.status).toBe('traded')
   })
 })
 
