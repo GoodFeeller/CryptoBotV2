@@ -6,9 +6,10 @@ import type { EntryDecision, EntryRequest, ReviewDecision, ReviewRequest } from 
 import { anonymizeEntry, anonymizeReview } from './anonymize.js'
 import { SYSTEM_PROMPT_V1 } from './prompts/v1.js'
 import { SYSTEM_PROMPT_V2 } from './prompts/v2.js'
+import { SYSTEM_PROMPT_V3 } from './prompts/v3.js'
 import { EntryResponseSchema, ReviewResponseSchema } from './schemas.js'
 
-export const SYSTEM_PROMPTS: Record<string, string> = { v1: SYSTEM_PROMPT_V1, v2: SYSTEM_PROMPT_V2 }
+export const SYSTEM_PROMPTS: Record<string, string> = { v1: SYSTEM_PROMPT_V1, v2: SYSTEM_PROMPT_V2, v3: SYSTEM_PROMPT_V3 }
 
 export interface DecisionRequest {
   kind: 'entry' | 'review'

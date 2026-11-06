@@ -87,3 +87,13 @@ describe('prompt v2', () => {
     expect(SYSTEM_PROMPTS.v1).toBeDefined()
   })
 })
+
+describe('prompt v3', () => {
+  it('forbids trades against the daily EMA and names the 0.5% minimum stop', async () => {
+    const { SYSTEM_PROMPTS } = await import('../../../src/features/claude/decision-advisor.js')
+
+    expect(SYSTEM_PROMPTS.v3).toContain('Против дневного тренда не входи')
+    expect(SYSTEM_PROMPTS.v3).toContain('не ближе 0.5% от entryPrice')
+    expect(SYSTEM_PROMPTS.v3).not.toContain('0.3%')
+  })
+})

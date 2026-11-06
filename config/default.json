@@ -1,7 +1,7 @@
 {
   "timeframes": { "execution": "5m", "signal": "1h" },
   "symbols": ["BTCUSDT", "ETHUSDT", "SOLUSDT", "XRPUSDT", "DOGEUSDT", "1000PEPEUSDT", "SUIUSDT", "HYPEUSDT", "ADAUSDT", "FARTCOINUSDT"],
-  "trading": { "maxPositions": 5, "limitOrderTtlHours": 4, "minStopPct": 0.3 },
+  "trading": { "maxPositions": 5, "limitOrderTtlHours": 4, "minStopPct": 0.5 },
   "risk": { "maxDrawdownHaltPct": 40 },
   "costs": { "takerPct": 0.055, "makerPct": 0.02, "slippagePct": 0.05, "limitFillThroughPct": 0.02, "maintenanceMarginPct": 0.5 },
   "baseline": { "entryOffsetPct": 0.2, "stopPct": 1, "takePct": 1.5, "notionalPct": 20, "leverage": 5 },
@@ -9,7 +9,7 @@
     "model": "claude-opus-5-5",
     "effort": "high",
     "maxTokens": 16000,
-    "promptVersion": "v2",
+    "promptVersion": "v3",
     "budgetUsd": 20,
     "assumedOutputTokens": 2000,
     "windows": { "5m": 72, "1h": 200, "4h": 100 },
