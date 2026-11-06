@@ -46,7 +46,7 @@ describe('loadConfig', () => {
     expect(cfg.claude.maxTokens).toBe(16000)
     expect(cfg.claude.budgetUsd).toBe(20)
     expect(cfg.claude.windows).toEqual({ '5m': 72, '1h': 200, '4h': 100 })
-    expect(cfg.claude.promptVersion).toBe('v3')
+    expect(cfg.claude.promptVersion).toBe('v4')
     expect(cfg.claude.pricing).toEqual({ inputPerM: 4, outputPerM: 20, cacheReadPerM: 0.2, cacheWritePerM: 5 })
   })
 

@@ -97,3 +97,14 @@ describe('prompt v3', () => {
     expect(SYSTEM_PROMPTS.v3).not.toContain('0.3%')
   })
 })
+
+describe('prompt v4', () => {
+  it('puts profit first and targets the whole wave', async () => {
+    const { SYSTEM_PROMPTS } = await import('../../../src/features/claude/decision-advisor.js')
+
+    expect(SYSTEM_PROMPTS.v4).toContain('Главная цель — прибыль')
+    expect(SYSTEM_PROMPTS.v4).toContain('Тейк — на обычный размер волны')
+    expect(SYSTEM_PROMPTS.v4).toContain('Против дневного тренда не входи')
+    expect(SYSTEM_PROMPTS.v4).toContain('не ближе 0.5% от entryPrice')
+  })
+})

@@ -9,7 +9,7 @@
     "model": "claude-opus-5-5",
     "effort": "high",
     "maxTokens": 16000,
-    "promptVersion": "v3",
+    "promptVersion": "v4",
     "budgetUsd": 20,
     "assumedOutputTokens": 2000,
     "windows": { "5m": 72, "1h": 200, "4h": 100 },
