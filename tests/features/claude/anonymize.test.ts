@@ -83,6 +83,7 @@ describe('prompt v2', () => {
 
     expect(SYSTEM_PROMPTS.v2).toContain('5m')
     expect(SYSTEM_PROMPTS.v2).toContain('post-only')
+    expect(SYSTEM_PROMPTS.v2).toContain('не ближе 0.3% от entryPrice')
     expect(SYSTEM_PROMPTS.v1).toBeDefined()
   })
 })
